@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二进制LED + 七段数码管 · 0-9</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #1a1e28;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+        .panel {
+            background: #0f1219;
+            border-radius: 3rem 3rem 2rem 2rem;
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            padding: 2rem 2.5rem 2.5rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            border-bottom: 4px solid #2a2f3c;
+        }
+
+        /* 数码管和LED区域 */
+        .display-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        /* 七段数码管 */
+        .seven-seg {
+            background: #0b0d12;
+            padding: 20px 18px;
+            border-radius: 28px;
+            box-shadow: inset 0 6px 8px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.5), 0 0 0 1px #2e323f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .digit-container {
+            position: relative;
+            width: 110px;
+            height: 180px;
+        }
+        .segment {
+            position: absolute;
+            background: #1e212a;
+            border-radius: 10px;
+            transition: background 0.12s ease, box-shadow 0.12s ease;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+        }
+        /* 水平段 (a, g, d) */
+        .segment-h {
+            width: 70px;
+            height: 16px;
+            left: 20px;
+            border-radius: 12px;
+        }
+        /* 垂直段 (f, b, e, c) */
+        .segment-v {
+            width: 16px;
+            height: 70px;
+            border-radius: 12px;
+        }
+        /* 位置 */
+        .seg-a { top: 8px; left: 20px; }
+        .seg-b { top: 24px; right: 6px; }
+        .seg-c { bottom: 24px; right: 6px; }
+        .seg-d { bottom: 8px; left: 20px; }
+        .seg-e { bottom: 24px; left: 6px; }
+        .seg-f { top: 24px; left: 6px; }
+        .seg-g { top: 78px; left: 20px; }
+
+        /* 点亮状态 */
+        .segment.on {
+            background: #ff3b3b;
+            box-shadow: 0 0 14px #ff5e5e, 0 0 6px #ff0000, inset 0 0 8px #ffbaba;
+        }
+        /* 为了柔和, 红色数码管 */
+
+        /* 8个LED */
+        .led-bank {
+            background: #0b0d12;
+            padding: 22px 20px;
+            border-radius: 40px;
+            box-shadow: inset 0 6px 8px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.5), 0 0 0 1px #2e323f;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px 20px;
+            justify-items: center;
+            align-items: center;
+        }
+        .led-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .led {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #1e212a;
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.8), 0 0 0 1px #2f3542, 0 4px 8px rgba(0,0,0,0.6);
+            transition: background 0.1s ease, box-shadow 0.1s ease;
+        }
+        .led.on {
+            background: #2eff7b;
+            box-shadow: 0 0 18px #2eff7b, 0 0 8px #1bff5e, inset 0 0 8px #b3ffcf, 0 0 0 1px #1eff6e;
+        }
+        .led-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #8f9bb5;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px black;
+        }
+
+        /* 输入框区域 */
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        .input-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 400;
+            color: #6e7b99;
+            text-shadow: 0 1px 2px black;
+        }
+        .digit-input {
+            background: #12161f;
+            border: none;
+            outline: none;
+            border-radius: 60px;
+            padding: 14px 30px;
+            font-size: 2rem;
+            font-weight: 600;
+            width: 140px;
+            text-align: center;
+            color: #eef5ff;
+            caret-color: #2eff7b;
+            box-shadow: inset 0 6px 10px rgba(0,0,0,0.8), 0 0 0 2px #242a36, 0 8px 12px rgba(0,0,0,0.4);
+            transition: box-shadow 0.2s, background 0.2s;
+            font-family: 'Courier New', monospace;
+        }
+        .digit-input:focus {
+            box-shadow: inset 0 6px 10px rgba(0,0,0,0.8), 0 0 0 2px #2eff7b, 0 8px 12px rgba(0,0,0,0.6);
+            background: #161c28;
+        }
+        .hint {
+            color: #5a6681;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .panel {
+                padding: 1.5rem;
+            }
+            .display-area {
+                gap: 1.5rem;
+            }
+            .digit-container {
+                width: 80px;
+                height: 140px;
+                transform: scale(0.9);
+            }
+            .segment-h {
+                width: 52px;
+                height: 12px;
+                left: 14px;
+            }
+            .segment-v {
+                width: 12px;
+                height: 52px;
+            }
+            .seg-a { top: 6px; left: 14px; }
+            .seg-b { top: 18px; right: 4px; }
+            .seg-c { bottom: 18px; right: 4px; }
+            .seg-d { bottom: 6px; left: 14px; }
+            .seg-e { bottom: 18px; left: 4px; }
+            .seg-f { top: 18px; left: 4px; }
+            .seg-g { top: 62px; left: 14px; }
+            .led {
+                width: 30px;
+                height: 30px;
+            }
+            .led-bank {
+                gap: 10px 14px;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="display-area">
+            <!-- 七段数码管 -->
+            <div class="seven-seg">
+                <div class="digit-container" id="digitContainer">
+                    <div class="segment segment-h seg-a" id="seg-a"></div>
+                    <div class="segment segment-v seg-b" id="seg-b"></div>
+                    <div class="segment segment-v seg-c" id="seg-c"></div>
+                    <div class="segment segment-h seg-d" id="seg-d"></div>
+                    <div class="segment segment-v seg-e" id="seg-e"></div>
+                    <div class="segment segment-v seg-f" id="seg-f"></div>
+                    <div class="segment segment-h seg-g" id="seg-g"></div>
+                </div>
+            </div>
+
+            <!-- 8个LED -->
+            <div class="led-bank" id="ledBank">
+                <!-- 顺序: 从高位到低位, bit7 ~ bit0 -->
+                <div class="led-item"><div class="led" id="led7"></div><span class="led-label">7</span></div>
+                <div class="led-item"><div class="led" id="led6"></div><span class="led-label">6</span></div>
+                <div class="led-item"><div class="led" id="led5"></div><span class="led-label">5</span></div>
+                <div class="led-item"><div class="led" id="led4"></div><span class="led-label">4</span></div>
+                <div class="led-item"><div class="led" id="led3"></div><span class="led-label">3</span></div>
+                <div class="led-item"><div class="led" id="led2"></div><span class="led-label">2</span></div>
+                <div class="led-item"><div class="led" id="led1"></div><span class="led-label">1</span></div>
+                <div class="led-item"><div class="led" id="led0"></div><span class="led-label">0</span></div>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-area">
+            <span class="input-label">输入 0 ~ 9</span>
+            <input type="text" id="digitInput" class="digit-input" maxlength="1" placeholder="0-9" inputmode="numeric" autocomplete="off" value="0">
+            <span class="hint">仅限单个数字</span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ---------- 七段数码管映射 ----------
+            // 段顺序: a, b, c, d, e, f, g (共阳/共阴逻辑, 这里1表示点亮)
+            // 数字 0-9 对应的段编码 (a~g)
+            const segmentMap = {
+                '0': [1, 1, 1, 1, 1, 1, 0], // a,b,c,d,e,f 亮, g灭
+                '1': [0, 1, 1, 0, 0, 0, 0], // b,c 亮
+                '2': [1, 1, 0, 1, 1, 0, 1], // a,b,d,e,g
+                '3': [1, 1, 1, 1, 0, 0, 1], // a,b,c,d,g
+                '4': [0, 1, 1, 0, 0, 1, 1], // b,c,f,g
+                '5': [1, 0, 1, 1, 0, 1, 1], // a,c,d,f,g
+                '6': [1, 0, 1, 1, 1, 1, 1], // a,c,d,e,f,g
+                '7': [1, 1, 1, 0, 0, 0, 0], // a,b,c
+                '8': [1, 1, 1, 1, 1, 1, 1], // 全部
+                '9': [1, 1, 1, 1, 0, 1, 1]  // a,b,c,d,f,g
+            };
+
+            // 段元素ID列表 (顺序 a,b,c,d,e,f,g)
+            const segmentIds = ['seg-a', 'seg-b', 'seg-c', 'seg-d', 'seg-e', 'seg-f', 'seg-g'];
+
+            // 获取所有段元素
+            const segmentElements = segmentIds.map(id => document.getElementById(id));
+
+            // LED元素 (从led7到led0)
+            const led7 = document.getElementById('led7');
+            const led6 = document.getElementById('led6');
+            const led5 = document.getElementById('led5');
+            const led4 = document.getElementById('led4');
+            const led3 = document.getElementById('led3');
+            const led2 = document.getElementById('led2');
+            const led1 = document.getElementById('led1');
+            const led0 = document.getElementById('led0');
+            const ledElements = [led7, led6, led5, led4, led3, led2, led1, led0]; // 索引0对应bit7
+
+            const inputField = document.getElementById('digitInput');
+
+            // ---------- 更新数码管 ----------
+            function updateSevenSegment(digitChar) {
+                const pattern = segmentMap[digitChar];
+                if (!pattern) return; // 非法数字不更新(但不会发生)
+                for (let i = 0; i < 7; i++) {
+                    if (pattern[i]) {
+                        segmentElements[i].classList.add('on');
+                    } else {
+                        segmentElements[i].classList.remove('on');
+                    }
+                }
+            }
+
+            // ---------- 更新LED (二进制) ----------
+            function updateLEDs(digitChar) {
+                const num = parseInt(digitChar, 10);
+                if (isNaN(num) || num < 0 || num > 9) return;
+
+                // 8位二进制, bit7 ~ bit0
+                // 例如数字 5 => 0000 0101 => led7灭, led6灭, led5灭, led4灭, led3灭, led2亮, led1灭, led0亮
+                for (let bit = 0; bit < 8; bit++) {
+                    const bitValue = (num >> (7 - bit)) & 1; // bit7 是最高位, ledElements[0] 是led7
+                    if (bitValue === 1) {
+                        ledElements[bit].classList.add('on');
+                    } else {
+                        ledElements[bit].classList.remove('on');
+                    }
+                }
+            }
+
+            // ---------- 全部更新 (根据输入) ----------
+            function updateAllFromInput() {
+                let raw = inputField.value.trim();
+                // 如果输入为空或不是单个数字, 我们维持之前显示？但为了体验, 可以保留上一个有效数字
+                // 但题目要求输入其他字符无效, 且输入框限制只能输入0-9单个数字。
+                // 我们使用过滤逻辑：只保留第一个0-9字符, 并强制长度为1。
+                // 更好的：如果用户输入非数字, 我们直接重置为上一个有效值? 
+                // 为了符合“输入其他字符无效”，我们实时过滤，使输入框中只有合法的0-9单个字符。
+
+                // 先清理：去掉所有非数字字符
+                let cleaned = raw.replace(/[^0-9]/g, '');
+                // 只取第一个字符
+                if (cleaned.length > 1) {
+                    cleaned = cleaned.charAt(0);
+                }
+                // 如果清理后为空，则回退到'0'（但也可以保持上一个状态，但为了简单，我们设为'0'）
+                if (cleaned.length === 0) {
+                    // 但不要粗暴设为0？如果用户试图删除，保持显示0但输入框可能为空，我们设为'0'让界面一致。
+                    // 但删除所有字符后，我们希望输入框显示0还是空？根据题目，输入框应该只能输入0~9单个数字，所以空是不允许的。我们可以重置为0。
+                    cleaned = '0';
+                }
+
+                // 更新输入框的值（确保只包含单个数字字符）
+                if (inputField.value !== cleaned) {
+                    inputField.value = cleaned;
+                }
+
+                // 用有效的数字字符更新显示
+                updateSevenSegment(cleaned);
+                updateLEDs(cleaned);
+            }
+
+            // ---------- 输入事件处理 ----------
+            function onInputChange(e) {
+                // 获取原始输入
+                let value = inputField.value;
+                // 过滤掉所有非数字字符
+                let digitsOnly = value.replace(/[^0-9]/g, '');
+                // 只保留第一个字符（限制单个数字）
+                if (digitsOnly.length > 1) {
+                    digitsOnly = digitsOnly.charAt(0);
+                }
+                // 如果过滤后为空，则回退到'0'（保证界面有显示）
+                if (digitsOnly.length === 0) {
+                    digitsOnly = '0';
+                }
+                // 更新输入框
+                inputField.value = digitsOnly;
+                // 更新显示
+                updateSevenSegment(digitsOnly);
+                updateLEDs(digitsOnly);
+            }
+
+            // 为了防止输入字母等, 使用input事件实时过滤
+            inputField.addEventListener('input', onInputChange);
+
+            // 额外处理按键, 禁止一些操作如粘贴非数字？input已经处理，但粘贴后还是会触发input
+            // 阻止非数字按键（但input事件已经过滤，所以没必要）
+            // 但用户可能输入中文等，input事件过滤足够。
+
+            // 初始化：将输入框设为0，并更新所有显示
+            function init() {
+                inputField.value = '0';
+                updateSevenSegment('0');
+                updateLEDs('0');
+                // 聚焦输入框（可选）
+                // inputField.focus();
+            }
+
+            init();
+
+            // 防止用户使用退格键删除后变为空字符串，我们用input事件已经处理为'0'，但为了体验，再监听keydown避免输入非法键？
+            // 但是input事件已经能处理所有文本变化，而且会重置为0，可以了。
+            // 额外: 针对方向键等不影响内容
+            // 针对粘贴非数字，input会过滤。
+
+            // 但是有个小问题：如果用户想用退格删除，我们强制设成0可能不太友好，但题目要求输入框只能输入0-9单个数字，所以输入框始终应该至少有一个数字。可以接受。
+
+            // 还可以增加blur时检查
+            inputField.addEventListener('blur', function() {
+                if (inputField.value === '' || !/^[0-9]$/.test(inputField.value)) {
+                    inputField.value = '0';
+                    updateSevenSegment('0');
+                    updateLEDs('0');
+                } else {
+                    // 确保同步
+                    updateSevenSegment(inputField.value);
+                    updateLEDs(inputField.value);
+                }
+            });
+
+            // 键盘事件防止输入多个字符？其实maxlength=1加上input过滤已经足够。
+            // 但有个bug: 如果用户选中文本然后输入数字，可能会替换，input事件会处理。
+            // 另外限制只能输入数字：在keydown里屏蔽非数字，但考虑粘贴和输入法，input事件更可靠。
+            // 加一层keydown屏蔽字母等（除功能键）
+            inputField.addEventListener('keydown', function(e) {
+                // 允许：数字键、退格、删除、箭头、Tab、Home、End等
+                const key = e.key;
+                // 如果是单个字符且不是数字，阻止默认
+                if (key.length === 1 && !/[0-9]/.test(key)) {
+                    e.preventDefault();
+                }
+                // 如果输入的是数字但当前已有内容且未选中，阻止？maxlength=1会处理，但maxlength不能阻止替换选中。
+                // 但input事件会过滤长度。也可不管。
+            });
+
+            // 以防万一，使用定时器确保maxlength=1不被绕过？input已处理。
+        })();
+    </script>
+</body>
+</html>
